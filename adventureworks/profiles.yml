@@ -1,16 +1,24 @@
 adventureworks:
-  target: duckdb
+  target: dev
   outputs:
-    duckdb:
-     type: duckdb
-     path: target/adventureworks.duckdb
-     threads: 12
-    postgres:  
-      type: postgres
-      host: localhost
-      user: postgres
-      password: postgres
-      port: 5432
-      dbname: adventureworks
-      schema: dbo
-      threads: 12
+    dev:
+      type: snowflake
+      account: 
+
+      # User/password auth
+      user: dbt_user
+      password: 
+
+      role: dbt_role
+      database: dbt_db
+      warehouse: dbt_wh
+      schema: dbt_schema
+      threads: 1
+      client_session_keep_alive: False
+
+      # optional
+      connect_retries: 0 # default 0
+      connect_timeout: 10 # default: 10
+      retry_on_database_errors: False # default: false
+      retry_all: False  # default: false
+      reuse_connections: False
