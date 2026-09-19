@@ -39,9 +39,11 @@ Current state (audited 2026-09-19):
    patterns with short illustrative snippets.
 4. Add a data-modelling-fundamentals doc (grain, fact table types, additive/semi/non-additive
    measures, conformed/degenerate/junk dimensions, star vs. snowflake schema).
-5. Update existing docs part01–part07 in place (not full rewrites) to reflect the new structure and
+5. Add a beginner-oriented "how dbt works" doc, taught as a class for someone who has never used dbt:
+   project anatomy, the DAG, materializations, and the parse/compile/execute run lifecycle.
+6. Update existing docs part01–part07 in place (not full rewrites) to reflect the new structure and
    add detail/diagrams where the current text is thin.
-6. Use Mermaid diagrams (native GitHub rendering, text-based) for new charts, matching the existing
+7. Use Mermaid diagrams (native GitHub rendering, text-based) for new charts, matching the existing
    docs' habit of illustrating concepts visually.
 
 ## Non-goals
@@ -52,7 +54,9 @@ Current state (audited 2026-09-19):
   are taught via the existing dims (SCD1) and short standalone snippets (SCD3), per user decision.
 - No CI/CD setup — out of scope for this pass.
 - No renumbering of part01–part07 filenames (avoids breaking any external links to this fork); new
-  docs are inserted as `part00-...` and `part04b-...` with nav links updated.
+  docs are inserted as `part00-...`, `part00b-...`, and `part04b-...` with nav links updated.
+- The dbt intro doc teaches dbt-the-tool generically (parse/compile/execute, DAG, materializations);
+  it does not re-teach Kimball concepts (that's part00b's job) or Snowflake-specific setup (part01's).
 
 ## 1. Project structure: staging layer
 
@@ -184,10 +188,48 @@ Content outline:
      carrying the old value forward only when the tracked column changed.
    - Mermaid diagram: a single row gaining a `previous_x` column instead of a new row.
 
-## 5. Data modelling fundamentals doc
+## 5. Intro to dbt doc (new)
 
-New `docs/part00-data-modeling-fundamentals.md`, linked as the first item in the README ToC (before
-part01) and as part01's new "Previous" link (replacing the direct link to `../README.md`).
+New `docs/part00-intro-to-dbt.md`, positioned first in the reading order — before the modelling
+fundamentals doc — since a reader can't usefully learn "how to model dimensionally in dbt" without
+first knowing what dbt is and does. Written as a class for someone who has never touched dbt.
+
+Content outline:
+
+1. **What dbt is** — the "T" in ELT: a SQL+Jinja templating and orchestration layer that turns raw
+   tables already sitting in a warehouse into modeled tables, by generating and running plain SQL
+   against that warehouse. Contrast with traditional ETL (transform happens before loading, usually in
+   a separate tool) to place dbt precisely.
+2. **Project anatomy** — walk through this repo's own folders (`models/`, `seeds/`, `snapshots/`,
+   `macros/`, `tests/`, `analyses/`) and what dbt does with each one, plus `dbt_project.yml` and
+   `profiles.yml` as the two files that configure, respectively, the project and the connection.
+3. **The DAG** — how a `{{ ref('some_model') }}` or `{{ source(...) }}` call is both how you write SQL
+   *and* how dbt learns the dependency graph; no separate "orchestration config" is needed. Mermaid
+   diagram of this project's actual DAG once staging exists (seeds → staging views → mart tables).
+4. **Materializations** — `view`, `table`, `incremental`, `ephemeral`: what SQL each one literally
+   compiles to and executes on Snowflake (e.g. `table` → `create or replace table as select`,
+   `incremental` → `merge`/`insert` against existing data), so the abstraction doesn't feel magical.
+5. **What happens when you type `dbt run`** — three phases: **parse** (read every file, resolve
+   `ref`/`source` calls, build the in-memory manifest/DAG), **compile** (render Jinja to plain SQL per
+   node, written to `target/compiled/...`), **execute** (send compiled SQL to Snowflake via the
+   `dbt-snowflake` adapter, in DAG order, respecting `threads` for parallelism; results recorded to
+   `target/run_results.json`). Mermaid sequence/flow diagram of this lifecycle.
+6. **Core CLI commands** — `dbt deps`, `dbt seed`, `dbt run`, `dbt test`, `dbt snapshot`, `dbt build`
+   (runs seed+run+test+snapshot together in DAG order), `dbt docs generate`/`serve`, `dbt debug` — one
+   or two sentences each on what it does under the hood, referencing the parse/compile/execute model
+   from step 5.
+7. **dbt Core vs. dbt Cloud** — brief note that this project uses dbt Core (the open-source CLI, run
+   locally or in your own CI), and that dbt Cloud is a separate hosted product with a scheduler/IDE on
+   top of the same underlying engine — enough to avoid confusion when the reader searches for help
+   online and finds dbt Cloud screenshots.
+8. Hand-off line into part00b: "Now that you know what dbt does, let's look at *what* we're going to
+   ask it to build."
+
+## 6. Data modelling fundamentals doc
+
+New `docs/part00b-data-modeling-fundamentals.md`, linked in the README ToC right after the new intro
+to dbt doc (before part01), and as part01's new "Previous" link (replacing the direct link to
+`../README.md`).
 
 Content outline (expanding on the brief blurb currently only in `README.md`):
 
@@ -203,7 +245,7 @@ Content outline (expanding on the brief blurb currently only in `README.md`):
   `snowflake-schema.png` images already in `docs/img/`, plus a new Mermaid ER-style diagram of this
   project's actual star schema (`fct_sales` + its dimensions) for a concrete, current reference.
 
-## 6. Testing syntax modernization
+## 7. Testing syntax modernization
 
 Mechanical rename of `tests:` → `data_tests:` in every model and seed `.yml` file (deprecated key in
 current dbt-core). No behavior change.
@@ -211,7 +253,8 @@ current dbt-core). No behavior change.
 ## Files touched (summary)
 
 **New:**
-- `docs/part00-data-modeling-fundamentals.md`
+- `docs/part00-intro-to-dbt.md`
+- `docs/part00b-data-modeling-fundamentals.md`
 - `docs/part04b-slowly-changing-dimensions.md`
 - `models/staging/**` (13 staging `.sql` models + 4 `_*.yml` docs files)
 - `snapshots/scd_person_snapshot.sql`
@@ -224,7 +267,7 @@ current dbt-core). No behavior change.
 - All existing model/seed `.yml` files (`tests:` → `data_tests:`)
 - `docs/part01-setup-dbt-project.md` (Snowflake-only rewrite + package-lock workflow)
 - `docs/part04-create-dimension.md`, `docs/part05-create-fact.md` (nav links to part04b)
-- `README.md` (ToC entries for part00 and part04b)
+- `README.md` (ToC entries for part00, part00b, and part04b)
 - Possibly light touch-ups to `docs/part02`, `part03`, `part06`, `part07` if they reference seeds
   directly or need a pointer to the new fundamentals/SCD content — confirmed during implementation by
   re-reading each file, not rewritten wholesale.
