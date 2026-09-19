@@ -2,90 +2,89 @@
 
 ### Step 1: Before you get started
 
-Before you can get started: 
+Before you can get started:
 
-- You must have either DuckDB or PostgreSQL installed. Choose one, and download and install the database using one of the following links:
-    - Download [DuckDB](https://duckdb.org/docs/installation/index)
-    - Download [PostgreSQL](https://www.postgresql.org/download/)
-- You must have Python 3.8 or above installed
-- You must have dbt version 1.3.0 or above installed
-- You should have a basic understanding of [SQL](https://www.sqltutorial.org/)
-- You should have a basic understanding of [dbt](https://docs.getdbt.com/docs/quickstarts/overview)
+- You must have a Snowflake account with a warehouse, database, and role you can create schemas in (a free [Snowflake trial account](https://signup.snowflake.com/) is enough to follow along).
+- You must have Python 3.8 or above installed.
+- You must have `pip` installed.
+- You should have a basic understanding of [SQL](https://www.sqltutorial.org/).
+- You should have a basic understanding of [dbt](docs/part00-intro-to-dbt.md) — see Part 0 if you skipped it.
 
 ### Step 2: Clone the repository
 
-Clone the [github repository](https://github.com/Data-Engineer-Camp/dbt-dimensional-modelling) by running this command in your terminal: 
+Clone the repository by running this command in your terminal:
 
 ```text
-git clone https://github.com/Data-Engineer-Camp/dbt-dimensional-modelling.git
-cd dbt-dimensional-modelling/adventureworks
+git clone https://github.com/ultramanguan/dbt-dimensional-model.git
+cd dbt-dimensional-model/adventureworks
 ```
 
-### Step 3: Install dbt database adaptors
-
-Depending on which database you’ve chosen, install the relevant database adaptor for your database: 
+### Step 3: Install dbt and the Snowflake adapter
 
 ```text
-# install adaptor for duckdb
-pip install dbt-duckdb
-
-# OR 
-
-# install adaptor for postgresql
-pip install dbt-postgres
+pip install -r ../requirements.txt
 ```
 
-### Step 4: Setup dbt profile
+This installs `dbt-snowflake` (which pulls in a matching `dbt-core` automatically), plus `sqlfluff` for linting.
 
-The dbt profile (see `adventureworks/profiles.yml`) has already been pre-configured for you. Verify that the configurations are set correctly based on your database credentials: 
+### Step 4: Create Snowflake objects for this project
 
-```yaml
-adventureworks:
-  target: duckdb # leave this as duckdb (default), or change this to your chosen database
+In a Snowflake worksheet, as a role that can create resources (e.g. `ACCOUNTADMIN` or a role your Snowflake admin has granted `CREATE` privileges to), run:
 
-  # supported databases: duckdb, postgres 
-  outputs:
-    duckdb: 
-     type: duckdb
-     path: target/adventureworks.duckdb
-     threads: 12
-
-    postgres:  
-      type: postgres
-      host: localhost
-      user: postgres
-      password: postgres
-      port: 5432
-      dbname: adventureworks # create this empty database beforehand 
-      schema: dbo
-      threads: 12
+```sql
+create warehouse if not exists dbt_wh with warehouse_size = 'xsmall' auto_suspend = 60 auto_resume = true;
+create database if not exists dbt_db;
+create role if not exists dbt_role;
+grant usage on warehouse dbt_wh to role dbt_role;
+grant all on database dbt_db to role dbt_role;
+grant role dbt_role to user <your_snowflake_username>;
 ```
 
-### Step 5: Install dbt dependencies
+### Step 5: Set your connection as environment variables
 
-We use packages like [dbt_utils](https://hub.getdbt.com/dbt-labs/dbt_utils/latest/) in this project, and we need to install the libraries for this package by running the command: 
+`adventureworks/profiles.yml` is already configured to read your Snowflake connection details from environment variables, so no credentials are ever committed to git. Set these in your shell (add them to `~/.zshrc`/`~/.bashrc` to persist across sessions):
 
+```bash
+export DBT_SNOWFLAKE_ACCOUNT="your_account_identifier"   # e.g. xy12345.us-east-1
+export DBT_SNOWFLAKE_USER="your_username"
+export DBT_SNOWFLAKE_PASSWORD="your_password"
+export DBT_SNOWFLAKE_ROLE="dbt_role"
+export DBT_SNOWFLAKE_DATABASE="dbt_db"
+export DBT_SNOWFLAKE_WAREHOUSE="dbt_wh"
+export DBT_SNOWFLAKE_SCHEMA="dbt_schema"
 ```
-dbt deps 
-```
 
-### Step 6: Seed your database
+Password auth is the simplest way to get started. For anything beyond a personal learning project, prefer [key-pair authentication](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup#key-pair-authentication) instead — generate a key pair, register the public key on your Snowflake user, and replace the `password` line in `profiles.yml` with `private_key_path`/`private_key_passphrase`.
 
-We are using [dbt seeds](https://docs.getdbt.com/docs/build/seeds) (see `adventureworks/seeds/*`) to insert AdventureWorks data into your database: 
+### Step 6: Verify the connection
 
 ```text
-# seed duckdb 
-dbt seed --target duckdb
-
-# seed postgres
-dbt seed --target postgres
+dbt debug
 ```
 
-### Step 7: Examine the database source schema
+Expected output ends with `All checks passed!`. If it doesn't, re-check the environment variables from Step 5 — `dbt debug` prints exactly which check failed.
 
-All data generated by the business is stored on an OLTP database. The Entity Relationship Diagram (ERD) of the database has been provided to you. 
+### Step 7: Install dbt package dependencies
 
-Examine the database source schema below, paying close attention to: 
+We use packages like [dbt_utils](https://hub.getdbt.com/dbt-labs/dbt_utils/latest/) in this project. `dbt deps` reads the version range in `packages.yml`, resolves it against the dbt Hub, and writes the exact resolved version to `package-lock.yml`, which you should commit so everyone (and CI) installs the identical package version:
+
+```text
+dbt deps
+```
+
+### Step 8: Seed your database
+
+We are using [dbt seeds](https://docs.getdbt.com/docs/build/seeds) (see `adventureworks/seeds/*`) to insert AdventureWorks data into Snowflake:
+
+```text
+dbt seed
+```
+
+### Step 9: Examine the database source schema
+
+All data generated by the business is stored on an OLTP database. The Entity Relationship Diagram (ERD) of the database has been provided to you.
+
+Examine the database source schema below, paying close attention to:
 
 - Tables
 - Keys
@@ -95,38 +94,16 @@ Examine the database source schema below, paying close attention to:
 
 *Source schema*
 
-### Step 8: Query the tables
+### Step 10: Query the tables
 
-Get a better sense of what the records look like by executing select statements using your database's SQL editor.
+Get a better sense of what the records look like by executing select statements in a Snowflake worksheet.
 
-For example:  
+For example:
 
 ```sql
-select * from sales.salesorderheader limit 10; 
+select * from dbt_db.sales.salesorderheader limit 10;
 ```
 
-Output: 
+When you've successfully set up the dbt project and Snowflake, we can now move into the next part to identify the tables required for a dimensional model.
 
-```
-┌──────────────┬──────────────┬─────────────────┬───┬───────────────┬─────────────────────┬────────────────┐
-│ salesorderid │ shipmethodid │ billtoaddressid │ … │ salespersonid │      shipdate       │ accountnumber  │
-│    int32     │    int32     │      int32      │   │     int32     │      timestamp      │    varchar     │
-├──────────────┼──────────────┼─────────────────┼───┼───────────────┼─────────────────────┼────────────────┤
-│        43659 │            5 │             985 │ … │           279 │ 2011-06-07 00:00:00 │ 10-4020-000676 │
-│        43660 │            5 │             921 │ … │           279 │ 2011-06-07 00:00:00 │ 10-4020-000117 │
-│        43661 │            5 │             517 │ … │           282 │ 2011-06-07 00:00:00 │ 10-4020-000442 │
-│        43662 │            5 │             482 │ … │           282 │ 2011-06-07 00:00:00 │ 10-4020-000227 │
-│        43663 │            5 │            1073 │ … │           276 │ 2011-06-07 00:00:00 │ 10-4020-000510 │
-│        43664 │            5 │             876 │ … │           280 │ 2011-06-07 00:00:00 │ 10-4020-000397 │
-│        43665 │            5 │             849 │ … │           283 │ 2011-06-07 00:00:00 │ 10-4020-000146 │
-│        43666 │            5 │            1074 │ … │           276 │ 2011-06-07 00:00:00 │ 10-4020-000511 │
-│        43667 │            5 │             629 │ … │           277 │ 2011-06-07 00:00:00 │ 10-4020-000646 │
-│        43668 │            5 │             529 │ … │           282 │ 2011-06-07 00:00:00 │ 10-4020-000514 │
-├──────────────┴──────────────┴─────────────────┴───┴───────────────┴─────────────────────┴────────────────┤
-│ 10 rows                                                                             23 columns (6 shown) │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-When you’ve successfully set up the dbt project and database, we can now move into the next part to identify the tables required for a dimensional model. 
-
-[&laquo; Previous](../README.md) [Next &raquo;](part02-identify-business-process.md)
+[&laquo; Previous](part00b-data-modeling-fundamentals.md) [Next &raquo;](part02-identify-business-process.md)
