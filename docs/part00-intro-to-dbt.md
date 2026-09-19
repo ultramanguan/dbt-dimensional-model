@@ -118,4 +118,4 @@ Everything in this tutorial uses **dbt Core**: the open-source command-line tool
 
 Now that you know what dbt does, the [next part](part00b-data-modeling-fundamentals.md) covers *what* we're going to ask it to build: the theory behind dimensional modelling.
 
-[« Previous](../README.md) [Next »](part00b-data-modeling-fundamentals.md)
+[&laquo; Previous](../README.md) [Next &raquo;](part00b-data-modeling-fundamentals.md)
