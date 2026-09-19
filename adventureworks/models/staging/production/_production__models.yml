@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_production__product
+    description: Cleaned, renamed pass-through of the product seed.
+    columns:
+      - name: product_id
+        description: The natural key of the product.
+        data_tests:
+          - not_null
+          - unique
+      - name: product_name
+        data_tests:
+          - not_null
+      - name: product_subcategory_id
+
+  - name: stg_production__productsubcategory
+    description: Cleaned, renamed pass-through of the productsubcategory seed.
+    columns:
+      - name: product_subcategory_id
+        description: The natural key of the product subcategory.
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_id
+        data_tests:
+          - not_null
+      - name: product_subcategory_name
+        data_tests:
+          - not_null
+
+  - name: stg_production__productcategory
+    description: Cleaned, renamed pass-through of the productcategory seed.
+    columns:
+      - name: product_category_id
+        description: The natural key of the product category.
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_name
+        data_tests:
+          - not_null

@@ -1,0 +1,22 @@
+select
+    productid as product_id,
+    name as product_name,
+    productnumber as product_number,
+    color as product_color,
+    class as product_class,
+    productsubcategoryid as product_subcategory_id,
+    productline as product_line,
+    standardcost as standard_cost,
+    listprice as list_price,
+    safetystocklevel as safety_stock_level,
+    reorderpoint as reorder_point,
+    makeflag as make_flag,
+    finishedgoodsflag as finished_goods_flag,
+    daystomanufacture as days_to_manufacture,
+    weight,
+    weightunitmeasurecode as weight_unit_measure_code,
+    sellstartdate as sell_start_date,
+    productmodelid as product_model_id,
+    rowguid as row_guid,
+    modifieddate as modified_date
+from {{ ref('product') }}
