@@ -5,13 +5,13 @@ models:
     columns:
       - name: address_key
         description: The surrogate key of the addressid
-        tests:
+        data_tests:
           - not_null
           - unique
-      
-      - name: addressid
+
+      - name: address_id
         description: The natural key
-        tests:
+        data_tests:
           - not_null
           - unique
 
