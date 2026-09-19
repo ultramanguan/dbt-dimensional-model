@@ -1,5 +1,7 @@
-dbt-core==1.4.5
-dbt-postgres==1.4.5
-dbt-duckdb==1.4.1
-sqlfluff==2.0.4
-sqlfluff-templater-dbt==2.0.4
+# dbt-snowflake pulls in a matching dbt-core version automatically; do not
+# pin dbt-core separately. Verify these are still the latest minor lines at
+# https://pypi.org/project/dbt-snowflake/ and https://pypi.org/project/sqlfluff/
+# before installing, since this was written without live network access.
+dbt-snowflake>=1.8.0,<2.0.0
+sqlfluff>=3.0.0,<4.0.0
+sqlfluff-templater-dbt>=3.0.0,<4.0.0

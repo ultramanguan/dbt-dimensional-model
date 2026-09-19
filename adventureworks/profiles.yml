@@ -3,17 +3,18 @@ adventureworks:
   outputs:
     dev:
       type: snowflake
-      account: 
+      account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
 
-      # User/password auth
-      user: dbt_user
-      password: 
+      # User/password auth. See docs/part01-setup-dbt-project.md for
+      # key-pair auth as an alternative to a plaintext password.
+      user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
+      password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
 
-      role: dbt_role
-      database: dbt_db
-      warehouse: dbt_wh
-      schema: dbt_schema
-      threads: 1
+      role: "{{ env_var('DBT_SNOWFLAKE_ROLE', 'dbt_role') }}"
+      database: "{{ env_var('DBT_SNOWFLAKE_DATABASE', 'dbt_db') }}"
+      warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE', 'dbt_wh') }}"
+      schema: "{{ env_var('DBT_SNOWFLAKE_SCHEMA', 'dbt_schema') }}"
+      threads: 4
       client_session_keep_alive: False
 
       # optional
