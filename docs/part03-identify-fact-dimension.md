@@ -41,6 +41,8 @@ Let’s define a fact table called `fct_sales` which joins `sales.salesorderhead
 
 Based on the business questions that our business user would like answered, we can identify several tables that would contain useful contextual information for our business process: 
 
+Before we build dimension tables from these, each raw table gets a thin "staging" model — a `stg_<schema>__<table>.sql` file that only renames columns to clean, consistent names and does light type casting. Staging models don't join or apply business logic; that happens in the dimension/fact models built on top of them. We'll build dimensions directly against these staging models in the next part.
+
 - `person.address`
 - `person.countryregion`
 - `production.product`
