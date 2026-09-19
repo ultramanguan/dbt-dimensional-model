@@ -78,7 +78,7 @@ Using the star schema approach, we can identify 6 dimensions as shown below that
 - `dim_order_status` : a dimension table created by taking distinct statuses from `salesorderheader`
 - `dim_date` : a specially generated dimension table containing date attributes using the [dbt_date](https://hub.getdbt.com/calogica/dbt_date/latest/) package. 
 
-*Note: We have manually seeded the `dim_date` table since DuckDB is not supported by the dbt_date package.*
+*Note: We have manually seeded the `dim_date` table for simplicity, rather than generating it with the dbt_date package.*
 
 
 *Dimension tables*

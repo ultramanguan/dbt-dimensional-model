@@ -8,7 +8,7 @@ Before you can get started:
 - You must have Python 3.8 or above installed.
 - You must have `pip` installed.
 - You should have a basic understanding of [SQL](https://www.sqltutorial.org/).
-- You should have a basic understanding of [dbt](docs/part00-intro-to-dbt.md) — see Part 0 if you skipped it.
+- You should have a basic understanding of [dbt](part00-intro-to-dbt.md) — see Part 0 if you skipped it.
 
 ### Step 2: Clone the repository
 
