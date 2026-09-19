@@ -8,11 +8,13 @@ This tutorial is also featured on the [dbt developer blog](https://docs.getdbt.c
 
 ## Table of Contents 
 
-- [Part 0: Understand dimensional modelling concepts](#dimensional-modelling)
-- [Part 1: Set up a mock dbt project and database](docs/part01-setup-dbt-project.md)
+- [Part 0: Introduction to dbt](docs/part00-intro-to-dbt.md)
+- [Part 0b: Understand data modelling and dimensional modelling concepts](docs/part00b-data-modeling-fundamentals.md)
+- [Part 1: Set up a dbt project and Snowflake](docs/part01-setup-dbt-project.md)
 - [Part 2: Identify the business process to model](docs/part02-identify-business-process.md)
 - [Part 3: Identify the fact and dimension tables](docs/part03-identify-fact-dimension.md)
 - [Part 4: Create the dimension tables](docs/part04-create-dimension.md)
+- [Part 4b: Slowly changing dimensions (SCD Types 1, 2, 3)](docs/part04b-slowly-changing-dimensions.md)
 - [Part 5: Create the fact table](docs/part05-create-fact.md)
 - [Part 6: Document the dimensional model relationships](docs/part06-document-model.md)
 - [Part 7: Consume the dimensional model](docs/part07-consume-model.md)
@@ -47,4 +49,4 @@ The benefits of dimensional modelling are:
 
 Now that we understand the broad concepts and benefits of dimensional modelling, let’s get hands-on and create our first dimensional model using dbt. 
 
-[Next &raquo;](docs/part01-setup-dbt-project.md)
+[Next &raquo;](docs/part00-intro-to-dbt.md)
