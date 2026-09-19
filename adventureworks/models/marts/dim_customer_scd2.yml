@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: dim_customer_scd2
+    description: >
+      A Type 2 slowly changing dimension for customers, built on top of the
+      scd_person_snapshot dbt snapshot. Each row represents one version of a
+      customer's attributes, valid between valid_from (inclusive) and valid_to
+      (exclusive, null when the row is the current version).
+    columns:
+      - name: customer_scd2_key
+        description: Surrogate key, unique per customer per version (hash of customer_id + valid_from).
+        data_tests:
+          - not_null
+      - name: customer_id
+        description: The natural key of the customer.
+        data_tests:
+          - not_null
+      - name: business_entity_id
+        description: The natural key of the underlying person record.
+      - name: full_name
+        description: The customer's full name as of this version.
+      - name: store_business_entity_id
+        description: The natural key of the store this customer is associated with.
+      - name: store_name
+        description: The store name.
+      - name: valid_from
+        description: Timestamp from which this version of the customer record is valid.
+        data_tests:
+          - not_null
+      - name: valid_to
+        description: Timestamp at which this version stopped being valid. Null means this is the current version.
+      - name: is_current
+        description: True if this is the current version of the customer record.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - customer_id
+            - valid_from
