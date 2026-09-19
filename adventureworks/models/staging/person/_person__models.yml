@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_person__person
+    description: Cleaned, renamed pass-through of the person seed.
+    columns:
+      - name: business_entity_id
+        description: The natural key of the person.
+        data_tests:
+          - not_null
+          - unique
+      - name: modified_date
+        data_tests:
+          - not_null
+
+  - name: stg_person__address
+    description: Cleaned, renamed pass-through of the address seed.
+    columns:
+      - name: address_id
+        description: The natural key of the address.
+        data_tests:
+          - not_null
+          - unique
+      - name: state_province_id
+        data_tests:
+          - not_null
+      - name: modified_date
+        data_tests:
+          - not_null
+
+  - name: stg_person__stateprovince
+    description: Cleaned, renamed pass-through of the stateprovince seed.
+    columns:
+      - name: state_province_id
+        description: The natural key of the state/province.
+        data_tests:
+          - not_null
+          - unique
+      - name: country_region_code
+        data_tests:
+          - not_null
+
+  - name: stg_person__countryregion
+    description: Cleaned, renamed pass-through of the countryregion seed.
+    columns:
+      - name: country_region_code
+        description: The natural key of the country/region.
+        data_tests:
+          - not_null
+          - unique
+      - name: country_name
+        data_tests:
+          - not_null
