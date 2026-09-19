@@ -1,0 +1,96 @@
+version: 2
+
+models:
+  - name: stg_sales__customer
+    description: Cleaned, renamed pass-through of the customer seed.
+    columns:
+      - name: customer_id
+        description: The natural key of the customer.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: stg_sales__store
+    description: Cleaned, renamed pass-through of the store seed.
+    columns:
+      - name: business_entity_id
+        description: The natural key of the store.
+        data_tests:
+          - not_null
+          - unique
+      - name: store_name
+        data_tests:
+          - not_null
+
+  - name: stg_sales__creditcard
+    description: Cleaned, renamed pass-through of the creditcard seed.
+    columns:
+      - name: credit_card_id
+        description: The natural key of the credit card.
+        data_tests:
+          - not_null
+          - unique
+      - name: card_type
+        data_tests:
+          - not_null
+
+  - name: stg_sales__salesorderheader
+    description: Cleaned, renamed pass-through of the salesorderheader seed.
+    columns:
+      - name: sales_order_id
+        description: The natural key of the sales order header.
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - not_null
+      - name: order_date
+        data_tests:
+          - not_null
+      - name: order_status
+        data_tests:
+          - not_null
+
+  - name: stg_sales__salesorderdetail
+    description: Cleaned, renamed pass-through of the salesorderdetail seed.
+    columns:
+      - name: sales_order_detail_id
+        description: The natural key of the sales order detail.
+        data_tests:
+          - not_null
+          - unique
+      - name: sales_order_id
+        data_tests:
+          - not_null
+      - name: product_id
+        data_tests:
+          - not_null
+      - name: unit_price
+        data_tests:
+          - not_null
+      - name: order_qty
+        data_tests:
+          - not_null
+
+  - name: stg_sales__salesreason
+    description: Cleaned, renamed pass-through of the salesreason seed.
+    columns:
+      - name: sales_reason_id
+        description: The natural key of the sales reason.
+        data_tests:
+          - not_null
+          - unique
+      - name: sales_reason_name
+        data_tests:
+          - not_null
+
+  - name: stg_sales__salesorderheadersalesreason
+    description: Cleaned, renamed pass-through of the salesorderheadersalesreason bridge seed.
+    columns:
+      - name: sales_order_id
+        data_tests:
+          - not_null
+      - name: sales_reason_id
+        data_tests:
+          - not_null
