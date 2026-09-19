@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: stg_date__date
+    description: Cleaned pass-through of the date spine seed.
+    columns:
+      - name: date_day
+        description: The natural key of the date table.
+        data_tests:
+          - not_null
+          - unique
