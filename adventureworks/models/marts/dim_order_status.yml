@@ -4,13 +4,13 @@ models:
   - name: dim_order_status
     columns:
       - name: order_status_key
-        description: The surrogate key of the order status 
-        tests:
+        description: The surrogate key of the order status
+        data_tests:
           - unique
           - not_null
 
       - name: order_status
-        description: The natural key of the order status table 
-        tests:
+        description: The natural key of the order status table
+        data_tests:
           - not_null
           - unique

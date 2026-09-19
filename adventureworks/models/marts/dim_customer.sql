@@ -1,32 +1,32 @@
 with stg_customer as (
     select
-        customerid,
-        personid,
-        storeid
-    from {{ ref('customer') }}
+        customer_id,
+        person_id,
+        store_id
+    from {{ ref('stg_sales__customer') }}
 ),
 
 stg_person as (
     select
-        businessentityid,
-        concat(coalesce(firstname, ''), ' ', coalesce(middlename, ''), ' ', coalesce(lastname, '')) as fullname
-    from {{ ref('person') }}
+        business_entity_id,
+        concat(coalesce(first_name, ''), ' ', coalesce(middle_name, ''), ' ', coalesce(last_name, '')) as full_name
+    from {{ ref('stg_person__person') }}
 ),
 
 stg_store as (
     select
-        businessentityid as storebusinessentityid,
-        storename
-    from {{ ref('store') }}
+        business_entity_id as store_business_entity_id,
+        store_name
+    from {{ ref('stg_sales__store') }}
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['stg_customer.customerid']) }} as customer_key,
-    stg_customer.customerid,
-    stg_person.businessentityid,
-    stg_person.fullname,
-    stg_store.storebusinessentityid,
-    stg_store.storename
+    {{ dbt_utils.generate_surrogate_key(['stg_customer.customer_id']) }} as customer_key,
+    stg_customer.customer_id,
+    stg_person.business_entity_id,
+    stg_person.full_name,
+    stg_store.store_business_entity_id,
+    stg_store.store_name
 from stg_customer
-left join stg_person on stg_customer.personid = stg_person.businessentityid
-left join stg_store on stg_customer.storeid = stg_store.storebusinessentityid
+left join stg_person on stg_customer.person_id = stg_person.business_entity_id
+left join stg_store on stg_customer.store_id = stg_store.store_business_entity_id

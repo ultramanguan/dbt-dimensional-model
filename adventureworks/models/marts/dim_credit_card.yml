@@ -5,14 +5,14 @@ models:
     columns:
       - name: creditcard_key
         description: The surrogate key of the creditcard id
-        tests:
-          - not_null   
-      - name: creditcardid
+        data_tests:
+          - not_null
+      - name: credit_card_id
         description: The natural key of the creditcard
-        tests:
-          - unique 
-          - not_null 
-      - name: cardtype
+        data_tests:
+          - unique
+          - not_null
+      - name: card_type
         description: The card name
-        tests:
+        data_tests:
           - not_null
