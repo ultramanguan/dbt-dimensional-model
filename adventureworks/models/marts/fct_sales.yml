@@ -6,60 +6,60 @@ models:
 
       - name: sales_key
         description: The surrogate key of the fct sales
-        tests:
+        data_tests:
           - not_null
           - unique
 
-      - name: salesorderid
+      - name: sales_order_id
         description: The natural key of the saleorderheader
-        tests:
+        data_tests:
           - not_null
 
-      - name: salesorderdetailid
+      - name: sales_order_detail_id
         description: The natural key of the salesorderdetail
-        tests:
+        data_tests:
           - not_null
-      
+
       - name: product_key
         description: The foreign key of the product
-        tests:
+        data_tests:
           - not_null
 
       - name: customer_key
         description: The foreign key of the customer
-        tests:
-          - not_null 
-      
+        data_tests:
+          - not_null
+
       - name: ship_address_key
         description: The foreign key of the shipping address
-        tests:
+        data_tests:
           - not_null
-      
+
       - name: creditcard_key
         description: The foreign key of the creditcard. If no creditcard exists, it was assumed that purchase was made in cash.
-        test:
+        data_tests:
           - not_null
 
       - name: order_date_key
         description: The foreign key of the order date
-        tests:
-          - not_null 
-      
-      - name: order_status_key
-        description: The foreign key of the order status 
-        tests:
-          - not_null  
-
-      - name: unitprice
-        description: The unit price of the product 
-        tests:
+        data_tests:
           - not_null
 
-      - name: orderqty
-        description: The quantity of the product 
-        tests:
+      - name: order_status_key
+        description: The foreign key of the order status
+        data_tests:
+          - not_null
+
+      - name: unit_price
+        description: The unit price of the product
+        data_tests:
+          - not_null
+
+      - name: order_qty
+        description: The quantity of the product
+        data_tests:
           - not_null
 
       - name: revenue
-        description: The revenue obtained by multiplying unitprice and orderqty 
+        description: The revenue obtained by multiplying unit_price and order_qty
 
