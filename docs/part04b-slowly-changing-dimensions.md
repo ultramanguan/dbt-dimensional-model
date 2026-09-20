@@ -40,7 +40,8 @@ Full-refresh works fine at this project's scale (a few thousand rows). At produc
 select
     product_id,
     product_name,
-    product_number
+    product_number,
+    modified_date
 from {{ ref('stg_production__product') }}
 
 {% if is_incremental() %}
@@ -62,19 +63,28 @@ Try it yourself:
    ```
    dbt seed && dbt snapshot && dbt run
    ```
-   Query `dim_customer_scd2` for any one `customer_id` — you'll see exactly one row, with `valid_to` null and `is_current` true.
-2. Simulate a real-world change: open `adventureworks/seeds/person/person.csv`, pick a row, change its `lastname`, and bump its `modifieddate` to a later timestamp (e.g. today's date).
+   Query `dim_customer_scd2` for any `customer_id` present in that table — not every customer has a linked person record, so only customers whose `person_id` matches a row in the person snapshot appear here (about 1,400 of the ~19,800 seeded customers; the rest are store accounts or point at person ids outside the person seed). For any `customer_id` that *is* there, you'll see exactly one row, with `valid_to` null and `is_current` true.
+2. Simulate a real-world change — but first find a customer/person pair that will actually show up:
+   ```sql
+   select c.customerid, c.personid
+   from customer c
+   join person p on c.personid = p.businessentityid
+   limit 5;
+   ```
+   (Or just inspect the two CSVs directly.) Then open `adventureworks/seeds/person/person.csv`, edit that specific `businessentityid`'s row — change its `lastname` and bump its `modifieddate` to a later timestamp (e.g. today's date). Editing an arbitrary person row instead will often produce no visible change, because most people in `person.csv` are never referenced by a customer.
 3. Re-run the pipeline:
    ```
    dbt seed && dbt snapshot && dbt run
    ```
 4. Query `dim_customer_scd2` for that same `customer_id` again. You now see **two** rows: the original, with `valid_to` set to the timestamp you just used and `is_current` false, and a new row with the updated name, `valid_to` null, and `is_current` true.
 
+For a concrete example, `customer.csv` row `customerid = 11000` has `personid = 13531`, and `person.csv` does have a `businessentityid = 13531` (`Jon`, `V`, `Yang`, `modifieddate = 2011-06-21`) — so this customer really does appear in `dim_customer_scd2`. Changing that person's `lastname` from `Yang` to `Whitfield` with `modifieddate = 2026-09-19` produces:
+
 ```mermaid
 flowchart LR
-    R1["full_name = Ken J Sanchez\nvalid_from = 2009-01-07\nvalid_to = 2026-09-19\nis_current = false"] --> R2["full_name = Ken J Smith\nvalid_from = 2026-09-19\nvalid_to = null\nis_current = true"]
+    R1["full_name = Jon V Yang\nvalid_from = 2011-06-21\nvalid_to = 2026-09-19\nis_current = false"] --> R2["full_name = Jon V Whitfield\nvalid_from = 2026-09-19\nvalid_to = null\nis_current = true"]
 ```
-*Two rows for the same `customer_id` in `dim_customer_scd2` after simulating a name change — this is what Type 2 history looks like.*
+*Two rows for `customer_id = 11000` (`business_entity_id = 13531`) in `dim_customer_scd2` after simulating a name change — this is what Type 2 history looks like.*
 
 This is exactly why the snapshot's `unique_key` (`business_entity_id`) matters: it's how dbt knows these two rows are different *versions of the same entity*, not two different people.
 
@@ -94,7 +104,7 @@ with source as (
 
 {% if is_incremental() %}
 existing as (
-    select address_id, city_name as previous_city_name
+    select address_id, city_name, previous_city_name
     from {{ this }}
 ),
 

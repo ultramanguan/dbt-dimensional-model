@@ -167,11 +167,13 @@ models:
 
 ### Step 9: Build dbt models
 
-Execute the [dbt run](https://docs.getdbt.com/reference/commands/run) and [dbt test](https://docs.getdbt.com/reference/commands/run) commands to run and test your dbt models:
+Execute the [dbt build](https://docs.getdbt.com/reference/commands/build) command to run and test your dbt models:
 
 ```
-dbt run && dbt test
+dbt build
 ```
+
+As in [Part 4](part04-create-dimension.md#step-8-build-dbt-models), `dbt build` is used here so the project's snapshot runs before the models that depend on it.
 
 Great work, you have successfully created your very first fact and dimension tables! Our dimensional model is now complete!! 🎉
 

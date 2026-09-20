@@ -33,5 +33,5 @@ select
     person_history.dbt_valid_to as valid_to,
     (person_history.dbt_valid_to is null) as is_current
 from stg_customer
-left join person_history on stg_customer.person_id = person_history.business_entity_id
+inner join person_history on stg_customer.person_id = person_history.business_entity_id
 left join stg_store on stg_customer.store_id = stg_store.store_business_entity_id
