@@ -36,7 +36,7 @@ create warehouse if not exists dbt_wh with warehouse_size = 'xsmall' auto_suspen
 create database if not exists dbt_db;
 create role if not exists dbt_role;
 grant usage on warehouse dbt_wh to role dbt_role;
-grant all on database dbt_db to role dbt_role;
+grant usage, create schema on database dbt_db to role dbt_role;
 grant role dbt_role to user <your_snowflake_username>;
 ```
 
