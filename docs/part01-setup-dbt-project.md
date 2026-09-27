@@ -35,10 +35,13 @@ In a Snowflake worksheet, as a role that can create resources (e.g. `ACCOUNTADMI
 create warehouse if not exists dbt_wh with warehouse_size = 'xsmall' auto_suspend = 60 auto_resume = true;
 create database if not exists dbt_db;
 create role if not exists dbt_role;
+create user if not exists dbt_user password = '<strong_password>' default_role = dbt_role default_warehouse = dbt_wh must_change_password = false;
 grant usage on warehouse dbt_wh to role dbt_role;
 grant usage, create schema on database dbt_db to role dbt_role;
-grant role dbt_role to user <your_snowflake_username>;
+grant role dbt_role to user dbt_user;
 ```
+
+`must_change_password = false` keeps this simple for a tutorial — `dbt debug` can authenticate immediately with the password you set. If you'd rather use your existing Snowflake user instead of creating `dbt_user`, just grant `dbt_role` to that user instead.
 
 ### Step 5: Set your connection as environment variables
 
@@ -46,7 +49,7 @@ grant role dbt_role to user <your_snowflake_username>;
 
 ```bash
 export DBT_SNOWFLAKE_ACCOUNT="your_account_identifier"   # e.g. xy12345.us-east-1
-export DBT_SNOWFLAKE_USER="your_username"
+export DBT_SNOWFLAKE_USER="dbt_user"   # or your own username if you skipped creating dbt_user
 export DBT_SNOWFLAKE_PASSWORD="your_password"
 export DBT_SNOWFLAKE_ROLE="dbt_role"
 export DBT_SNOWFLAKE_DATABASE="dbt_db"
