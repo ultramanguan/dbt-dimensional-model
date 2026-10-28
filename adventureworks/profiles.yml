@@ -5,10 +5,10 @@ adventureworks:
       type: snowflake
       account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
 
-      # User/password auth. See docs/part01-setup-dbt-project.md for
-      # key-pair auth as an alternative to a plaintext password.
+      # Key-pair auth (works on accounts that enforce MFA for passwords).
+      # See docs/part01-setup-dbt-project.md for how to generate the key.
       user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
-      password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+      private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
 
       role: "{{ env_var('DBT_SNOWFLAKE_ROLE', 'dbt_role') }}"
       database: "{{ env_var('DBT_SNOWFLAKE_DATABASE', 'dbt_db') }}"
