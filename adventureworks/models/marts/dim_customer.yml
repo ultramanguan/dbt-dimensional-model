@@ -24,3 +24,11 @@ models:
 
       - name: store_name
         description: The store name.
+
+      - name: customer_segment
+        description: Reseller when the customer is tied to a store, otherwise Individual.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Reseller', 'Individual']

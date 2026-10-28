@@ -26,7 +26,11 @@ select
     stg_person.business_entity_id,
     stg_person.full_name,
     stg_store.store_business_entity_id,
-    stg_store.store_name
+    stg_store.store_name,
+    case
+        when stg_customer.store_id is not null then 'Reseller'
+        else 'Individual'
+    end as customer_segment
 from stg_customer
 left join stg_person on stg_customer.person_id = stg_person.business_entity_id
 left join stg_store on stg_customer.store_id = stg_store.store_business_entity_id
