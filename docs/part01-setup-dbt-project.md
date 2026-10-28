@@ -35,13 +35,22 @@ In a Snowflake worksheet, as a role that can create resources (e.g. `ACCOUNTADMI
 create warehouse if not exists dbt_wh with warehouse_size = 'xsmall' auto_suspend = 60 auto_resume = true;
 create database if not exists dbt_db;
 create role if not exists dbt_role;
-create user if not exists dbt_user password = '<strong_password>' default_role = dbt_role default_warehouse = dbt_wh must_change_password = false;
+create user if not exists dbt_user default_role = dbt_role default_warehouse = dbt_wh;
 grant usage on warehouse dbt_wh to role dbt_role;
 grant usage, create schema on database dbt_db to role dbt_role;
 grant role dbt_role to user dbt_user;
 ```
 
-`must_change_password = false` keeps this simple for a tutorial — `dbt debug` can authenticate immediately with the password you set. If you'd rather use your existing Snowflake user instead of creating `dbt_user`, just grant `dbt_role` to that user instead.
+If you'd rather use your existing Snowflake user instead of creating `dbt_user`, just grant `dbt_role` to that user instead. Either way, this project logs in with a **key pair, not a password** (Step 5). Many Snowflake accounts require MFA for passwords, and dbt cannot answer an MFA prompt.
+
+> **Check your authentication policy.** If your account (or the user) has an [authentication policy](https://docs.snowflake.com/en/user-guide/authentication-policies), it must allow `KEYPAIR`, otherwise login fails with error `390202` even with a valid key. Check with `show authentication policies in account;` and `desc authentication policy <name>;`. If `AUTHENTICATION_METHODS` doesn't include `KEYPAIR`, an admin can add it:
+>
+> ```sql
+> alter authentication policy <db>.<schema>.<policy_name>
+>   set authentication_methods = ('PASSWORD', 'KEYPAIR');
+> ```
+>
+> `CLIENT_TYPES` must also allow `DRIVERS` (the default `ALL` is fine).
 
 ### Step 5: Set your connection as environment variables
 
@@ -50,14 +59,25 @@ grant role dbt_role to user dbt_user;
 ```bash
 export DBT_SNOWFLAKE_ACCOUNT="your_account_identifier"   # e.g. xy12345.us-east-1
 export DBT_SNOWFLAKE_USER="dbt_user"   # or your own username if you skipped creating dbt_user
-export DBT_SNOWFLAKE_PASSWORD="your_password"
+export DBT_SNOWFLAKE_PRIVATE_KEY_PATH="$HOME/.ssh/snowflake_dbt_key.p8"
 export DBT_SNOWFLAKE_ROLE="dbt_role"
 export DBT_SNOWFLAKE_DATABASE="dbt_db"
 export DBT_SNOWFLAKE_WAREHOUSE="dbt_wh"
 export DBT_SNOWFLAKE_SCHEMA="dbt_schema"
 ```
 
-Password auth is the simplest way to get started. For anything beyond a personal learning project, prefer [key-pair authentication](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup#key-pair-authentication) instead — generate a key pair, register the public key on your Snowflake user, and replace the `password` line in `profiles.yml` with `private_key_path`/`private_key_passphrase`.
+The profile uses [key-pair authentication](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup#key-pair-authentication), which works on accounts that enforce MFA. Generate a key pair and register the public key on your Snowflake user:
+
+```bash
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.ssh/snowflake_dbt_key.p8 -nocrypt
+openssl rsa -in ~/.ssh/snowflake_dbt_key.p8 -pubout -out ~/.ssh/snowflake_dbt_key.pub
+```
+
+```sql
+alter user dbt_user set rsa_public_key = '<contents of the .pub file, without the BEGIN/END lines>';
+```
+
+If you protect the private key with a passphrase, drop `-nocrypt` and add `private_key_passphrase` to `profiles.yml`. Because the key has no passphrase here, keep the `.p8` file out of git and readable only by you (`chmod 600`).
 
 ### Step 6: Verify the connection
 
@@ -66,6 +86,15 @@ dbt debug
 ```
 
 Expected output ends with `All checks passed!`. If it doesn't, re-check the environment variables from Step 5 — `dbt debug` prints exactly which check failed.
+
+Common connection errors:
+
+| Error | Cause | Fix |
+|---|---|---|
+| `390190` SAML Identity Provider parameter | `profiles.yml` was set to `authenticator: externalbrowser` (SSO) but the account has no SAML IdP configured | Remove `authenticator`; use key-pair auth as above |
+| `394509` MFA authentication is required | Logging in with a password on an account that enforces MFA | Use key-pair auth; don't use `password` |
+| `390202` rejected by the current authentication policy | The policy on the user/account doesn't allow `KEYPAIR` | Add `KEYPAIR` to `AUTHENTICATION_METHODS` (see the Step 4 note) |
+| JWT token invalid / invalid public key | Public key registered on a different user than `DBT_SNOWFLAKE_USER`, or pasted with the BEGIN/END lines | Re-run `alter user ... set rsa_public_key`; check `desc user <user>` shows `RSA_PUBLIC_KEY_FP` |
 
 ### Step 7: Install dbt package dependencies
 

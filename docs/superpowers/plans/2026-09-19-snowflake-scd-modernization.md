@@ -66,10 +66,10 @@ adventureworks:
       type: snowflake
       account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
 
-      # User/password auth. See docs/part01-setup-dbt-project.md for
-      # key-pair auth as an alternative to a plaintext password.
+      # Key-pair auth (works on accounts that enforce MFA for passwords).
+      # See docs/part01-setup-dbt-project.md for how to generate the key.
       user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
-      password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+      private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}"
 
       role: "{{ env_var('DBT_SNOWFLAKE_ROLE', 'dbt_role') }}"
       database: "{{ env_var('DBT_SNOWFLAKE_DATABASE', 'dbt_db') }}"
@@ -1577,7 +1577,7 @@ git commit -m "Add data modeling fundamentals doc (part00b)"
 - Modify: `docs/part01-setup-dbt-project.md`
 
 **Interfaces:**
-- Consumes: the `profiles.yml` env vars from Task 1 (`DBT_SNOWFLAKE_ACCOUNT`, `DBT_SNOWFLAKE_USER`, `DBT_SNOWFLAKE_PASSWORD`, `DBT_SNOWFLAKE_ROLE`, `DBT_SNOWFLAKE_DATABASE`, `DBT_SNOWFLAKE_WAREHOUSE`, `DBT_SNOWFLAKE_SCHEMA`); the `packages.yml` range from Task 1.
+- Consumes: the `profiles.yml` env vars from Task 1 (`DBT_SNOWFLAKE_ACCOUNT`, `DBT_SNOWFLAKE_USER`, `DBT_SNOWFLAKE_PRIVATE_KEY_PATH`, `DBT_SNOWFLAKE_ROLE`, `DBT_SNOWFLAKE_DATABASE`, `DBT_SNOWFLAKE_WAREHOUSE`, `DBT_SNOWFLAKE_SCHEMA`); the `packages.yml` range from Task 1.
 - Produces: its "Previous" link now points to `part00b-data-modeling-fundamentals.md` instead of `../README.md`.
 
 - [ ] **Step 1: Rewrite the doc**
@@ -1634,14 +1634,14 @@ grant role dbt_role to user <your_snowflake_username>;
 ```bash
 export DBT_SNOWFLAKE_ACCOUNT="your_account_identifier"   # e.g. xy12345.us-east-1
 export DBT_SNOWFLAKE_USER="your_username"
-export DBT_SNOWFLAKE_PASSWORD="your_password"
+export DBT_SNOWFLAKE_PRIVATE_KEY_PATH="$HOME/.ssh/snowflake_dbt_key.p8"
 export DBT_SNOWFLAKE_ROLE="dbt_role"
 export DBT_SNOWFLAKE_DATABASE="dbt_db"
 export DBT_SNOWFLAKE_WAREHOUSE="dbt_wh"
 export DBT_SNOWFLAKE_SCHEMA="dbt_schema"
 ```
 
-Password auth is the simplest way to get started. For anything beyond a personal learning project, prefer [key-pair authentication](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup#key-pair-authentication) instead — generate a key pair, register the public key on your Snowflake user, and replace the `password` line in `profiles.yml` with `private_key_path`/`private_key_passphrase`.
+The profile uses [key-pair authentication](https://docs.getdbt.com/docs/core/connect-data-platform/snowflake-setup#key-pair-authentication), which works on accounts that enforce MFA. See `docs/part01-setup-dbt-project.md` for generating the key and registering the public key on your Snowflake user.
 
 ### Step 6: Verify the connection
 

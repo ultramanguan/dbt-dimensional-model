@@ -28,7 +28,7 @@ A dbt project is a folder of SQL and YAML files with a specific, opinionated lay
 Two configuration files are easy to confuse when you're new to dbt:
 
 - **`dbt_project.yml`** is project-wide configuration that's committed to git along with your code. It tells dbt where to find each type of file (the `model-paths`, `seed-paths`, and so on you'll see near the top), and it sets defaults per folder — for example, this project's `dbt_project.yml` configures everything under `models/staging` to materialize as a `view` and everything under `models/marts` to materialize as a `table`, so you don't have to repeat that in every model file.
-- **`profiles.yml`** holds connection credentials — account, user, password, warehouse, and so on — and normally lives *outside* the project folder that gets committed to git, precisely because it contains secrets. This repo is a bit unusual in that it commits a `profiles.yml`: every credential in it is a call to `env_var()` (e.g. `{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}`), which reads the real value from your shell's environment variables at run time. Nothing sensitive is ever written into the file itself, so committing it is safe.
+- **`profiles.yml`** holds connection credentials — account, user, key or password, warehouse, and so on — and normally lives *outside* the project folder that gets committed to git, precisely because it contains secrets. This repo is a bit unusual in that it commits a `profiles.yml`: every credential in it is a call to `env_var()` (e.g. `{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH') }}`), which reads the real value from your shell's environment variables at run time. Nothing sensitive is ever written into the file itself, so committing it is safe.
 
 ### 3. The DAG
 
