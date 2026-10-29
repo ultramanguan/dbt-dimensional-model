@@ -125,7 +125,42 @@ You may choose from one of the following materialization types supported by dbt:
 - Table
 - Incremental
 
-It is common for fact tables to be materialized as `incremental` or `table` depending on the data volume size. [As a rule of thumb](https://docs.getdbt.com/docs/build/incremental-models#when-should-i-use-an-incremental-model), if you are transforming millions or billions of rows, then you should start using the `incremental` materialization. In this example, we have chosen to go with `table` for simplicity.
+It is common for fact tables to be materialized as `incremental` or `table` depending on the data volume size. [As a rule of thumb](https://docs.getdbt.com/docs/build/incremental-models#when-should-i-use-an-incremental-model), if you are transforming millions or billions of rows, then you should start using the `incremental` materialization. `fct_sales` is the table that grows with the business, so we materialize it as `incremental`:
+
+```sql
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='sales_key',
+        cluster_by=['order_date'],
+        on_schema_change='append_new_columns'
+    )
+}}
+
+...
+
+{% if is_incremental() %}
+where greatest(stg_salesorderheader.header_modified_date, stg_salesorderdetail.detail_modified_date)
+    >= (select dateadd(day, -{{ var('fct_sales_lookback_days', 3) }}, max(modified_date)) from {{ this }})
+{% endif %}
+```
+
+- **First run:** dbt builds the whole table. **Later runs:** dbt only processes order lines whose header or detail `modified_date` is newer than the latest one already in the table, then `merge`s them in by `sales_key`, so an updated line replaces its old row instead of being duplicated.
+- **Lookback window:** the filter reaches back `fct_sales_lookback_days` (default 3) before the latest `modified_date`, so late-arriving updates are still picked up. Pick the window to match how late your source can update an order; changes older than the window are missed until you run `dbt run --select fct_sales --full-refresh`.
+- **`order_date` and clustering:** `order_date_key` is a hash, so it can't be used to prune data. We keep the real `order_date` on the fact and cluster the table by it, so date-range queries only scan the matching micro-partitions. Clustering has an ongoing maintenance cost in Snowflake, so it pays off on large tables.
+- **Existing table:** if you built `fct_sales` before this change, run `dbt run --select fct_sales --full-refresh` once, so old rows get the new `order_date` and `modified_date` values.
+
+The dimensions stay as full-refresh `table`s: they are far smaller than the fact table, so rebuilding them is cheap.
+
+#### Scaling beyond this tutorial
+
+At a hundred million rows or more, a few other things are worth revisiting. They are left out here to keep the lesson simple:
+
+- `obt_sales` and `fct_sales_scd2` are still full-refresh tables; make them incremental too, or drop the OBT and let your BI tool join the star schema.
+- `dim_credit_card` and `dim_order_status` use `select distinct` over the whole orders table on every build; build them from their own source tables or a static list instead.
+- Tests like `unique` and `relationships` scan the whole fact table; scope them to a recent window with the `where` config.
+- Read from `source()` definitions with freshness checks instead of seeds, and size the warehouse from actual query times.
 
 ### Step 8: Create model documentation and tests
 

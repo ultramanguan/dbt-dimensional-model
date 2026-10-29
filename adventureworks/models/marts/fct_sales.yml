@@ -50,6 +50,16 @@ models:
         data_tests:
           - not_null
 
+      - name: order_date
+        description: The date the order was placed. The table is clustered on this column so date-range queries can prune files.
+        data_tests:
+          - not_null
+
+      - name: modified_date
+        description: The latest of the order header and order detail modified dates. Used as the watermark for incremental loads.
+        data_tests:
+          - not_null
+
       - name: unit_price
         description: The unit price of the product
         data_tests:

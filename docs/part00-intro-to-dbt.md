@@ -67,13 +67,13 @@ Notice the last arrow: `dim_product` feeds into `fct_sales`. Marts can depend on
 
 ### 4. Materializations
 
-A materialization is *how* dbt turns your `select` statement into something that persists (or doesn't) in the warehouse. You choose a materialization per model — either as a default for a whole folder in `dbt_project.yml`, or per-file with a `{{ config(materialized='...') }}` call. This project uses two of the four:
+A materialization is *how* dbt turns your `select` statement into something that persists (or doesn't) in the warehouse. You choose a materialization per model — either as a default for a whole folder in `dbt_project.yml`, or per-file with a `{{ config(materialized='...') }}` call. This project uses three of the four:
 
 | Materialization | What it compiles to | Used for |
 | --- | --- | --- |
 | `view` | `create or replace view ... as select ...` — no data is stored; the query re-runs every time something selects from it. | Staging models in this project — cheap to keep fresh since they're thin, one-to-one wrappers over seeds. |
 | `table` | `create or replace table ... as select ...` — the result set is physically stored in the warehouse. | Mart models in this project — joined, business-facing tables that are worth materializing once rather than recomputing on every read. |
-| `incremental` | On the first run, a full `create table as select`, same as `table`. On later runs, dbt compiles an `insert` (or `merge`) that only processes new or changed rows, instead of recomputing the whole table from scratch. | Not used yet in this project, but it's the option you reach for once a fact table gets too large to rebuild from scratch on every run. It comes up again in the SCD1 section later in this tutorial. |
+| `incremental` | On the first run, a full `create table as select`, same as `table`. On later runs, dbt compiles an `insert` (or `merge`) that only processes new or changed rows, instead of recomputing the whole table from scratch. | `fct_sales` in this project — the fact table is the one that gets too large to rebuild from scratch on every run. It comes up again in Part 5 and in the SCD1 section. |
 | `ephemeral` | Nothing — the model is never materialized in the warehouse at all. dbt inlines its SQL as a CTE into every model that references it. | Not used in this project, but handy for thin intermediate logic you don't want cluttering the warehouse with its own object. |
 
 ### 5. What happens when you run `dbt run`
