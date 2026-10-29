@@ -57,34 +57,57 @@ dbt has first-class support for Type 2 via [snapshots](https://docs.getdbt.com/d
 
 This project includes a working example: `adventureworks/snapshots/scd_person_snapshot.sql` tracks the `person` table (via `stg_person__person`) using a `timestamp` strategy against its `modified_date` column, and `adventureworks/models/marts/dim_customer_scd2.sql` builds a historized customer dimension on top of it.
 
-Try it yourself:
+Real source systems change over time, but a seed file is a static snapshot. To mimic that, this project ships `adventureworks/seeds/person/person_changes.csv`: seven dated changes to the `person` table, grouped into three **batches**. The `person_batch` var controls how many batches have "arrived" — `stg_person__person` (which feeds the snapshot) applies the original `person` seed plus every change with `batch <= person_batch`. Each `dbt snapshot` run then captures whatever the source looks like at that moment, exactly like a nightly production run would.
 
-1. Run the full pipeline once:
-   ```
-   dbt seed && dbt snapshot && dbt run
-   ```
-   Query `dim_customer_scd2` for any `customer_id` present in that table — not every customer has a linked person record, so only customers whose `person_id` matches a row in the person snapshot appear here (about 1,400 of the ~19,800 seeded customers; the rest are store accounts or point at person ids outside the person seed). For any `customer_id` that *is* there, you'll see exactly one row, with `valid_to` null and `is_current` true.
-2. Simulate a real-world change — but first find a customer/person pair that will actually show up:
-   ```sql
-   select c.customerid, c.personid
-   from customer c
-   join person p on c.personid = p.businessentityid
-   limit 5;
-   ```
-   (Or just inspect the two CSVs directly.) Then open `adventureworks/seeds/person/person.csv`, edit that specific `businessentityid`'s row — change its `lastname` and bump its `modifieddate` to a later timestamp (e.g. today's date). Editing an arbitrary person row instead will often produce no visible change, because most people in `person.csv` are never referenced by a customer.
-3. Re-run the pipeline:
-   ```
-   dbt seed && dbt snapshot && dbt run
-   ```
-4. Query `dim_customer_scd2` for that same `customer_id` again. You now see **two** rows: the original, with `valid_to` set to the timestamp you just used and `is_current` false, and a new row with the updated name, `valid_to` null, and `is_current` true.
+| Batch | `modifieddate` | Change | Real-world case |
+| --- | --- | --- | --- |
+| 1 | 2011-07-15 | Person 317: last name `Ferrier` → `Ferrier-Lambert` | A name change |
+| 1 | 2011-07-15 | Person 391: middle name `A.` → `Alan` | An attribute is enriched |
+| 1 | 2011-07-15 | Person 439: first name `Shane` → `Shayne` | A source-side correction |
+| 2 | 2011-10-10 | Person 317: last name → `Lambert` | A second change to the same person |
+| 2 | 2011-10-10 | Person 391: middle name `Alan` → `A.` | A value reverts to an earlier one |
+| 2 | 2011-10-10 | Person 295 appears (`Jordan T. Whitaker`) | A late-arriving record: customer 29486 exists, but its person record doesn't until now |
+| 3 | 2011-11-20 | Person 483 is deleted | A hard delete at the source |
 
-For a concrete example, `customer.csv` row `customerid = 11000` has `personid = 13531`, and `person.csv` does have a `businessentityid = 13531` (`Jon`, `V`, `Yang`, `modifieddate = 2011-06-21`) — so this customer really does appear in `dim_customer_scd2`. Changing that person's `lastname` from `Yang` to `Whitfield` with `modifieddate = 2026-09-19` produces:
+Try it yourself, running the batches **in order** (the snapshot only moves forward):
+
+1. Load the seeds, build the staging view the snapshot reads, and take the first snapshot (no changes applied yet):
+   ```
+   dbt seed
+   dbt run --select stg_person__person --vars '{person_batch: 0}'
+   dbt snapshot
+   ```
+2. Apply each batch: rebuild the staging view with the new `person_batch` (the var is baked into the view when it's built, so `dbt snapshot --vars` alone would change nothing), then snapshot again:
+   ```
+   dbt run --select stg_person__person --vars '{person_batch: 1}'
+   dbt snapshot
+   dbt run --select stg_person__person --vars '{person_batch: 2}'
+   dbt snapshot
+   dbt run --select stg_person__person --vars '{person_batch: 3}'
+   dbt snapshot
+   ```
+3. Build the models:
+   ```
+   dbt run --select stg_sales__customer stg_sales__store stg_sales__salesorderheader stg_sales__salesorderdetail dim_customer_scd2 fct_sales_scd2
+   ```
+4. Query `dim_customer_scd2` for `customer_id` 29497 (person 317). You see **three** rows, each closed out by the next version's `valid_from`:
 
 ```mermaid
 flowchart LR
-    R1["full_name = Jon V Yang\nvalid_from = 2011-06-21\nvalid_to = 2026-09-19\nis_current = false"] --> R2["full_name = Jon V Whitfield\nvalid_from = 2026-09-19\nvalid_to = null\nis_current = true"]
+    R1["full_name = François Ferrier\nvalid_from = 2011-05-31\nvalid_to = 2011-07-15\nis_current = false"] --> R2["full_name = François Ferrier-Lambert\nvalid_from = 2011-07-15\nvalid_to = 2011-10-10\nis_current = false"] --> R3["full_name = François Lambert\nvalid_from = 2011-10-10\nvalid_to = null\nis_current = true"]
 ```
-*Two rows for `customer_id = 11000` (`business_entity_id = 13531`) in `dim_customer_scd2` after simulating a name change — this is what Type 2 history looks like.*
+*Three rows for `customer_id = 29497` after batches 1 and 2 — each change closed out the previous version instead of overwriting it.*
+
+What to look for in each case:
+
+- **Revert (customer 29533):** the name returns to `Douglas A. Baldwin`, so versions 1 and 3 have the same `full_name`. They are still separate rows with different `valid_from` values — which is why `valid_from` is part of `customer_scd2_key`.
+- **Late-arriving record (customer 29486):** no row exists until batch 2, with `valid_from = 2011-10-10`. Its first order (2011-08-01) predates that version, so in `fct_sales_scd2` it has a null `customer_scd2_key`; the 2011-10-31 order joins to the new row.
+- **Hard delete (customer 29565):** the row stays in the dimension, but it's closed out (`is_current = false`) because the snapshot uses `hard_deletes='invalidate'`. Its `valid_to` is the time the snapshot ran, not the date in the source.
+- **Point-in-time join:** `fct_sales_scd2` joins each order line to the customer version that was valid on the order date (`valid_from <= order_date < valid_to`). Customer 29497's three orders (2011-05-31, 2011-08-31, 2011-12-01) land on three different versions, so each order keeps the name the customer had when they placed it. Compare with `fct_sales`, which joins to the Type 1 `dim_customer` and only ever shows the current name.
+
+To start over, drop the snapshot table in Snowflake (`drop table if exists <your_db>.snapshots.scd_person_snapshot;`) and repeat from step 1. Don't snapshot after rebuilding the view with a *lower* `person_batch` than before: the snapshot would treat records missing from the older state as deleted.
+
+One limitation worth knowing: the snapshot uses the `timestamp` strategy, so it only notices a change when the source row's `modified_date` moves forward. A source system that edits a row without bumping `modified_date` would be missed. The `check` strategy, which compares column values instead, handles that case at the cost of comparing every tracked column on every run.
 
 This is exactly why the snapshot's `unique_key` (`business_entity_id`) matters: it's how dbt knows these two rows are different *versions of the same entity*, not two different people.
 

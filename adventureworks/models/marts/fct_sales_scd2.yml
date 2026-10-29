@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: fct_sales_scd2
+    description: >
+      Sales fact joined point-in-time to dim_customer_scd2: each order line points at the
+      customer version that was valid on the order date. Orders for customers without a
+      person record, or placed before it existed, have a null customer_scd2_key.
+    columns:
+      - name: sales_key
+        description: The surrogate key of the sales order line.
+        data_tests:
+          - not_null
+          - unique
+
+      - name: customer_scd2_key
+        description: The foreign key of the customer version valid on the order date.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customer_scd2')
+                field: customer_scd2_key
+
+      - name: customer_id
+        description: The natural key of the customer.
+        data_tests:
+          - not_null
+
+      - name: order_date
+        description: The date the order was placed.
+        data_tests:
+          - not_null

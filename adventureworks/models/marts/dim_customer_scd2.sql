@@ -23,7 +23,11 @@ stg_store as (
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['stg_customer.customer_id', 'person_history.dbt_valid_from']) }} as customer_scd2_key,
+    {{ dbt_utils.generate_surrogate_key([
+        'stg_customer.customer_id',
+        'person_history.dbt_valid_from',
+        'person_history.full_name'
+    ]) }} as customer_scd2_key,
     stg_customer.customer_id,
     person_history.business_entity_id,
     person_history.full_name,

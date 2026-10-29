@@ -6,6 +6,7 @@
         unique_key='business_entity_id',
         strategy='timestamp',
         updated_at='modified_date',
+        hard_deletes='invalidate',
     )
 }}
 

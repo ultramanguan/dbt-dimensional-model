@@ -9,9 +9,10 @@ models:
       (exclusive, null when the row is the current version).
     columns:
       - name: customer_scd2_key
-        description: Surrogate key, unique per customer per version (hash of customer_id + valid_from).
+        description: Surrogate key, unique per customer per version (hash of customer_id, valid_from and the versioned full_name).
         data_tests:
           - not_null
+          - unique
       - name: customer_id
         description: The natural key of the customer.
         data_tests:

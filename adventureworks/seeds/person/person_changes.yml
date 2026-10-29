@@ -1,0 +1,23 @@
+version: 2
+
+seeds:
+  - name: person_changes
+    description: >
+      Simulated source-system changes to the person table, applied in order by
+      `batch` (see the `person_batch` var in stg_person__person). Used to
+      demonstrate SCD Type 2 history.
+    config:
+      schema: person
+      column_types:
+        batch: integer
+        change_type: varchar
+        businessentityid: integer
+        title: varchar
+        firstname: varchar
+        middlename: varchar
+        lastname: varchar
+        namestyle: boolean
+        suffix: varchar
+        modifieddate: timestamp
+        rowguid: varchar
+        emailpromotion: integer
