@@ -71,6 +71,11 @@ Real source systems change over time, but a seed file is a static snapshot. To m
 
 Try it yourself, running the batches **in order** (the snapshot only moves forward):
 
+0. *(Optional)* Clean up any earlier run. A snapshot table remembers every version it has ever seen, so if you've run this walkthrough before — or snapshotted at a higher `person_batch` — drop it first. In a Snowflake worksheet:
+   ```sql
+   drop table if exists dbt_db.snapshots.scd_person_snapshot;
+   ```
+   Skip this on a first run. The dimension and fact tables are rebuilt from scratch by `dbt run`, so nothing else needs cleaning.
 1. Load the seeds, build the staging view the snapshot reads, and take the first snapshot (no changes applied yet):
    ```
    dbt seed
@@ -105,7 +110,7 @@ What to look for in each case:
 - **Hard delete (customer 29565):** the row stays in the dimension, but it's closed out (`is_current = false`) because the snapshot uses `hard_deletes='invalidate'`. Its `valid_to` is the time the snapshot ran, not the date in the source.
 - **Point-in-time join:** `fct_sales_scd2` joins each order line to the customer version that was valid on the order date (`valid_from <= order_date < valid_to`). Customer 29497's three orders (2011-05-31, 2011-08-31, 2011-12-01) land on three different versions, so each order keeps the name the customer had when they placed it. Compare with `fct_sales`, which joins to the Type 1 `dim_customer` and only ever shows the current name.
 
-To start over, drop the snapshot table in Snowflake (`drop table if exists <your_db>.snapshots.scd_person_snapshot;`) and repeat from step 1. Don't snapshot after rebuilding the view with a *lower* `person_batch` than before: the snapshot would treat records missing from the older state as deleted.
+To start over, repeat from step 0. Don't snapshot after rebuilding the view with a *lower* `person_batch` than before: the snapshot would treat records missing from the older state as deleted.
 
 One limitation worth knowing: the snapshot uses the `timestamp` strategy, so it only notices a change when the source row's `modified_date` moves forward. A source system that edits a row without bumping `modified_date` would be missed. The `check` strategy, which compares column values instead, handles that case at the cost of comparing every tracked column on every run.
 
