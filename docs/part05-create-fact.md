@@ -95,7 +95,9 @@ inner join stg_salesorderheader on stg_salesorderdetail.sales_order_id = stg_sal
 
 We want to be able to slice and dice our fact table against the dimension tables we have created in the earlier step. So we need to create the foreign surrogate keys that will be used to join the fact table back to the dimension tables.
 
-We achieve this by applying the `generate_surrogate_key()` macro to the same unique id columns that we had previously used when generating the surrogate keys in the dimension tables.
+For the Type 1 dimensions (product, credit card, address, order status, date), we apply the `generate_surrogate_key()` macro to the same unique id columns that we used when generating the surrogate keys in those dimension tables. The hashes match, so no lookup is needed.
+
+`dim_customer` is different: it is a Type 2 dimension with one row per customer *version* (Part 4b), and its key includes `valid_from`, so the fact table cannot compute it from `customer_id` alone. Instead, we look it up by joining on `customer_id` and picking the version that was valid on the order date. This is the standard approach for Type 2 dimensions.
 
 ```sql
 ...
@@ -103,7 +105,7 @@ We achieve this by applying the `generate_surrogate_key()` macro to the same uni
 select
     {{ dbt_utils.generate_surrogate_key(['stg_salesorderdetail.sales_order_id', 'sales_order_detail_id']) }} as sales_key,
     {{ dbt_utils.generate_surrogate_key(['product_id']) }} as product_key,
-    {{ dbt_utils.generate_surrogate_key(['customer_id']) }} as customer_key,
+    dim_customer.customer_key,
     {{ dbt_utils.generate_surrogate_key(['credit_card_id']) }} as creditcard_key,
     {{ dbt_utils.generate_surrogate_key(['ship_to_address_id']) }} as ship_address_key,
     {{ dbt_utils.generate_surrogate_key(['order_status']) }} as order_status_key,
@@ -115,6 +117,10 @@ select
     stg_salesorderdetail.revenue
 from stg_salesorderdetail
 inner join stg_salesorderheader on stg_salesorderdetail.sales_order_id = stg_salesorderheader.sales_order_id
+left join dim_customer
+    on stg_salesorderheader.customer_id = dim_customer.customer_id
+    and stg_salesorderheader.order_date >= dim_customer.valid_from
+    and (stg_salesorderheader.order_date < dim_customer.valid_to or dim_customer.valid_to is null)
 ```
 
 ### Step 7: Choose a materialization type
@@ -157,7 +163,8 @@ The dimensions stay as full-refresh `table`s: they are far smaller than the fact
 
 At a hundred million rows or more, a few other things are worth revisiting. They are left out here to keep the lesson simple:
 
-- `obt_sales` and `fct_sales_scd2` are still full-refresh tables; make them incremental too, or drop the OBT and let your BI tool join the star schema.
+- `obt_sales` is still a full-refresh table; make it incremental too, or drop it and let your BI tool join the star schema.
+- Because `fct_sales` looks up `customer_key` from a Type 2 dimension, an incremental run does not revisit old orders when a customer gets a back-dated or late-arriving version. Widen the lookback window, or run `--full-refresh` periodically, to fix that drift.
 - `dim_credit_card` and `dim_order_status` use `select distinct` over the whole orders table on every build; build them from their own source tables or a static list instead.
 - Tests like `unique` and `relationships` scan the whole fact table; scope them to a recent window with the `where` config.
 - Read from `source()` definitions with freshness checks instead of seeds, and size the warehouse from actual query times.
@@ -185,7 +192,7 @@ models:
           - not_null
 
       - name: customer_key
-        description: The foreign key of the customer
+        description: The foreign key of the customer version (Type 2) that was valid on the order date
         data_tests:
           - not_null
 

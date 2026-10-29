@@ -30,12 +30,21 @@ stg_salesorderdetail as (
         unit_price * order_qty as revenue,
         modified_date as detail_modified_date
     from {{ ref('stg_sales__salesorderdetail') }}
+),
+
+dim_customer as (
+    select
+        customer_id,
+        customer_key,
+        valid_from,
+        valid_to
+    from {{ ref('dim_customer') }}
 )
 
 select
     {{ dbt_utils.generate_surrogate_key(['stg_salesorderdetail.sales_order_id', 'sales_order_detail_id']) }} as sales_key,
     {{ dbt_utils.generate_surrogate_key(['product_id']) }} as product_key,
-    {{ dbt_utils.generate_surrogate_key(['customer_id']) }} as customer_key,
+    dim_customer.customer_key,
     {{ dbt_utils.generate_surrogate_key(['credit_card_id']) }} as creditcard_key,
     {{ dbt_utils.generate_surrogate_key(['ship_to_address_id']) }} as ship_address_key,
     {{ dbt_utils.generate_surrogate_key(['order_status']) }} as order_status_key,
@@ -49,6 +58,11 @@ select
     stg_salesorderdetail.revenue
 from stg_salesorderdetail
 inner join stg_salesorderheader on stg_salesorderdetail.sales_order_id = stg_salesorderheader.sales_order_id
+-- point-in-time lookup: the customer version that was valid on the order date
+left join dim_customer
+    on stg_salesorderheader.customer_id = dim_customer.customer_id
+    and stg_salesorderheader.order_date >= dim_customer.valid_from
+    and (stg_salesorderheader.order_date < dim_customer.valid_to or dim_customer.valid_to is null)
 {% if is_incremental() %}
 -- only reprocess rows changed since the last run, minus a lookback window for late updates
 where greatest(stg_salesorderheader.header_modified_date, stg_salesorderdetail.detail_modified_date)

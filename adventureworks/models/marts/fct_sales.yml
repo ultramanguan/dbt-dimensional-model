@@ -26,9 +26,13 @@ models:
           - not_null
 
       - name: customer_key
-        description: The foreign key of the customer
+        description: The foreign key of the customer version (SCD Type 2) that was valid on the order date
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_key
 
       - name: ship_address_key
         description: The foreign key of the shipping address

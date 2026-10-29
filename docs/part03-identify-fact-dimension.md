@@ -73,7 +73,7 @@ Using the star schema approach, we can identify 6 dimensions as shown below that
 
 - `dim_product` : a dimension table that joins `product`, `productsubcategory`, `productcategory`
 - `dim_address` : a dimension table that joins `address`, `stateprovince`, `countryregion`
-- `dim_customer` : a dimension table that joins `customer`, `person`, `store`
+- `dim_customer` : a dimension table that joins `customer`, `person` (as a Type 2 history, see Part 4b), `store`
 - `dim_credit_card` : a dimension table created from `creditcard`
 - `dim_order_status` : a dimension table created by taking distinct statuses from `salesorderheader`
 - `dim_date` : a specially generated dimension table containing date attributes using the [dbt_date](https://hub.getdbt.com/calogica/dbt_date/latest/) package. 

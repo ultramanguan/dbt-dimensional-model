@@ -2,28 +2,39 @@ version: 2
 
 models:
   - name: dim_customer
+    description: >
+      A Type 2 slowly changing dimension for customers, built on the scd_person_snapshot
+      snapshot. One row per customer per version of the linked person record, valid between
+      valid_from (inclusive) and valid_to (exclusive, null for the current version). Customers
+      with no person history have a single row. The first version of each customer starts at
+      1900-01-01 so earlier orders still match a version.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_id
+              - valid_from
     columns:
       - name: customer_key
-        description: The surrogate key of the customer
+        description: The surrogate key of the customer version (hash of customer_id, valid_from and full_name).
         data_tests:
           - unique
           - not_null
 
       - name: customer_id
-        description: The natural key of the customer
+        description: The natural key of the customer. Repeats across versions.
         data_tests:
           - not_null
-          - unique
 
       - name: full_name
-        description: The customer name. Adopted as customer_fullname when person name is not null.
+        description: The customer name as of this version. Null when the customer has no person record.
 
       - name: business_entity_id
 
       - name: store_business_entity_id
 
       - name: store_name
-        description: The store name.
+        description: The store name (current value, not versioned).
 
       - name: customer_segment
         description: Reseller when the customer is tied to a store, otherwise Individual.
@@ -32,3 +43,14 @@ models:
           - accepted_values:
               arguments:
                 values: ['Reseller', 'Individual']
+
+      - name: valid_from
+        description: Start of this version (inclusive). 1900-01-01 for the first version of every customer.
+        data_tests:
+          - not_null
+
+      - name: valid_to
+        description: End of this version (exclusive). Null for the current version.
+
+      - name: is_current
+        description: True for the latest version of the customer.

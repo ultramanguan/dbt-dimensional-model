@@ -1,6 +1,6 @@
 ## Part 4b: Slowly changing dimensions (SCD Types 1, 2, and 3)
 
-Every dimension we built in Part 4 answers "what does this entity look like *right now*?" But source values change: a customer moves and gets a new address, a product's name gets corrected, a person's last name changes. A **slowly changing dimension (SCD)** strategy decides what happens to the dimension table when that happens.
+Every dimension we built in Part 4 (and `dim_customer`, once we make it Type 2 below) answers "what does this entity look like *right now*?" But source values change: a customer moves and gets a new address, a product's name gets corrected, a person's last name changes. A **slowly changing dimension (SCD)** strategy decides what happens to the dimension table when that happens.
 
 There are three classic strategies:
 
@@ -30,7 +30,7 @@ flowchart LR
 
 ### SCD Type 1 — overwrite (no history)
 
-You've already built Type 1 dimensions without realizing it. Every dimension in Part 4 is materialized as a full-refresh `table`: each `dbt run` truncates and rebuilds it from the current state of the source data. If a product's name changes in `product.csv` and you re-seed and re-run, `dim_product` simply shows the new name — the old one is gone. That *is* Type 1.
+You've already built Type 1 dimensions without realizing it. Every dimension in Part 4 (product, address, credit card, order status, date) is materialized as a full-refresh `table`: each `dbt run` truncates and rebuilds it from the current state of the source data. If a product's name changes in `product.csv` and you re-seed and re-run, `dim_product` simply shows the new name — the old one is gone. That *is* Type 1. `dim_customer` is the one exception: it is our Type 2 example, covered next.
 
 Full-refresh works fine at this project's scale (a few thousand rows). At production scale (millions of rows), rebuilding the whole table on every run is wasteful, so Type 1 is usually implemented as an `incremental` model that merges only changed rows instead:
 
@@ -55,7 +55,7 @@ The `merge` strategy overwrites any row whose `unique_key` already exists — sa
 
 dbt has first-class support for Type 2 via [snapshots](https://docs.getdbt.com/docs/build/snapshots). A snapshot is a special kind of model that, on every `dbt snapshot` run, compares the current source data against what it captured last time and inserts a new row *only* for entities whose tracked columns changed — closing out the previous row's `dbt_valid_to` rather than overwriting it.
 
-This project includes a working example: `adventureworks/snapshots/scd_person_snapshot.sql` tracks the `person` table (via `stg_person__person`) using a `timestamp` strategy against its `modified_date` column, and `adventureworks/models/marts/dim_customer_scd2.sql` builds a historized customer dimension on top of it.
+This project includes a working example: `adventureworks/snapshots/scd_person_snapshot.sql` tracks the `person` table (via `stg_person__person`) using a `timestamp` strategy against its `modified_date` column, and `adventureworks/models/marts/dim_customer.sql` builds the project's customer dimension on top of it. `dim_customer` is a Type 2 dimension: one row per customer per version, with `valid_from`, `valid_to` and `is_current`. Customers with no person history get a single row, and the first version of every customer starts at `1900-01-01` so that orders placed before the first recorded change still find a version.
 
 Real source systems change over time, but a seed file is a static snapshot. To mimic that, this project ships `adventureworks/seeds/person/person_changes.csv`: seven dated changes to the `person` table, grouped into three **batches**. The `person_batch` var controls how many batches have "arrived" — `stg_person__person` (which feeds the snapshot) applies the original `person` seed plus every change with `batch <= person_batch`. Each `dbt snapshot` run then captures whatever the source looks like at that moment, exactly like a nightly production run would.
 
@@ -93,22 +93,24 @@ Try it yourself, running the batches **in order** (the snapshot only moves forwa
    ```
 3. Build the models:
    ```
-   dbt run --select stg_sales__customer stg_sales__store stg_sales__salesorderheader stg_sales__salesorderdetail dim_customer_scd2 fct_sales_scd2
+   dbt run --select +dim_customer
+   dbt run --select dim_product dim_address dim_credit_card dim_order_status dim_date
+   dbt run --select fct_sales --full-refresh
    ```
-4. Query `dim_customer_scd2` for `customer_id` 29497 (person 317). You see **three** rows, each closed out by the next version's `valid_from`:
+4. Query `dim_customer` for `customer_id` 29497 (person 317). You see **three** rows, each closed out by the next version's `valid_from` (the first starts at `1900-01-01`, the placeholder start date for every customer's first version):
 
 ```mermaid
 flowchart LR
-    R1["full_name = François Ferrier\nvalid_from = 2011-05-31\nvalid_to = 2011-07-15\nis_current = false"] --> R2["full_name = François Ferrier-Lambert\nvalid_from = 2011-07-15\nvalid_to = 2011-10-10\nis_current = false"] --> R3["full_name = François Lambert\nvalid_from = 2011-10-10\nvalid_to = null\nis_current = true"]
+    R1["full_name = François Ferrier\nvalid_from = 1900-01-01\nvalid_to = 2011-07-15\nis_current = false"] --> R2["full_name = François Ferrier-Lambert\nvalid_from = 2011-07-15\nvalid_to = 2011-10-10\nis_current = false"] --> R3["full_name = François Lambert\nvalid_from = 2011-10-10\nvalid_to = null\nis_current = true"]
 ```
 *Three rows for `customer_id = 29497` after batches 1 and 2 — each change closed out the previous version instead of overwriting it.*
 
 What to look for in each case:
 
-- **Revert (customer 29533):** the name returns to `Douglas A. Baldwin`, so versions 1 and 3 have the same `full_name`. They are still separate rows with different `valid_from` values — which is why `valid_from` is part of `customer_scd2_key`.
-- **Late-arriving record (customer 29486):** no row exists until batch 2, with `valid_from = 2011-10-10`. Its first order (2011-08-01) predates that version, so in `fct_sales_scd2` it has a null `customer_scd2_key`; the 2011-10-31 order joins to the new row.
+- **Revert (customer 29533):** the name returns to `Douglas A. Baldwin`, so versions 1 and 3 have the same `full_name`. They are still separate rows with different `valid_from` values — which is why `valid_from` is part of `customer_key`.
+- **Late-arriving record (customer 29486):** the person record only arrives in batch 2. The customer has a single row from `1900-01-01`, so both of its orders (2011-08-01 and 2011-10-31) join to it and show the name that is known now. Backfilling the first version to the beginning of time is the usual way to handle records that arrive late.
 - **Hard delete (customer 29565):** the row stays in the dimension, but it's closed out (`is_current = false`) because the snapshot uses `hard_deletes='invalidate'`. Its `valid_to` is the time the snapshot ran, not the date in the source.
-- **Point-in-time join:** `fct_sales_scd2` joins each order line to the customer version that was valid on the order date (`valid_from <= order_date < valid_to`). Customer 29497's three orders (2011-05-31, 2011-08-31, 2011-12-01) land on three different versions, so each order keeps the name the customer had when they placed it. Compare with `fct_sales`, which joins to the Type 1 `dim_customer` and only ever shows the current name.
+- **Point-in-time join:** `fct_sales` looks up `customer_key` from `dim_customer` by picking the version that was valid on the order date (`valid_from <= order_date < valid_to`). Customer 29497's three orders (2011-05-31, 2011-08-31, 2011-12-01) land on three different versions, so each order keeps the name the customer had when they placed it. Re-run `fct_sales` with `--full-refresh` after changing the dimension history, as in step 3, because an incremental run does not revisit old orders. Compare with `fct_sales`, which joins to the Type 1 `dim_customer` and only ever shows the current name.
 
 To start over, repeat from step 0. Don't snapshot after rebuilding the view with a *lower* `person_batch` than before: the snapshot would treat records missing from the older state as deleted.
 
@@ -162,7 +164,7 @@ The key idea: `previous_city_name` only updates when `city_name` actually change
 ### Choosing between them
 
 - Use **Type 1** for corrections (typos, data-quality fixes) where the old value was simply wrong and history has no value.
-- Use **Type 2** whenever "what did this look like at the time of the transaction" matters for reporting — e.g. you want `fct_sales` to join to the customer's address *as of the order date*, not their current address.
+- Use **Type 2** whenever "what did this look like at the time of the transaction" matters for reporting — e.g. you want `fct_sales` to join to the customer's name *as of the order date*, not their current name. That is exactly how `dim_customer` and `fct_sales` work in this project.
 - Use **Type 3** for the rare case where you specifically need "current vs. immediately-previous" (e.g. "customers who moved this quarter") and don't need deeper history.
 
 [&laquo; Previous](part04-create-dimension.md) [Next &raquo;](part05-create-fact.md)
